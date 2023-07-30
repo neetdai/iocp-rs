@@ -24,7 +24,7 @@ pub struct CompletionPort {
 
 impl CompletionPort {
     /// Create a CompletionPort with specify then concurrent
-    fn new(num_threads: u32) -> Result<Self> {
+    pub fn new(num_threads: u32) -> Result<Self> {
         let ret = unsafe { CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, num_threads) };
 
         if ret == 0 {
@@ -47,27 +47,6 @@ impl CompletionPort {
         }
     }
 
-    /// Get a result from CompletionPort while the task is finished.
-    ///
-    pub fn get(&self, timeout: Option<Duration>) -> Result<OperationalResult> {
-        let timeout = dur_to_ms(timeout);
-        let mut bytes_used = 0;
-        let mut token = 0;
-        let mut over_lapped = null_mut::<OVERLAPPED>();
-
-        let ret = unsafe {
-            GetQueuedCompletionStatus(
-                self.handle,
-                &mut bytes_used,
-                &mut token,
-                &mut over_lapped as *mut _,
-                timeout,
-            )
-        };
-
-        cvt(ret).map(|_| OperationalResult::new(token, bytes_used, over_lapped))
-    }
-
     /// Get many result by Context lists, and return OperationalResult lists.
     pub fn get_many(
         &self,
@@ -75,7 +54,7 @@ impl CompletionPort {
         timeout: Option<Duration>,
     ) -> Result<Vec<OperationalResult>> {
         let mut entries = list
-            .iter()
+            .iter_mut()
             .map(Context::over_lapped_ptr)
             .map(|over_lapped_ptr| OVERLAPPED_ENTRY {
                 lpCompletionKey: 0,
@@ -103,11 +82,11 @@ impl CompletionPort {
             Err(Error::last_os_error())
         } else {
             let removed = removed as usize;
-            list.drain(..removed).for_each(|_| {});
-            Ok(entries
+            Ok(list
                 .drain(..removed)
-                .map(OperationalResult::from_entry)
-                .collect::<_>())
+                .zip(entries.drain(..removed))
+                .map(|(context, entry)| OperationalResult::new(context, entry))
+                .collect())
         }
     }
 
@@ -125,20 +104,11 @@ impl CompletionPort {
     }
 }
 
-pub struct CompletionPortGraud {
-    completion_port: CompletionPort,
-}
-
-impl CompletionPortGraud {
-    pub fn new(num_threads: u32) -> Result<Self> {
-        CompletionPort::new(num_threads).map(|completion_port| Self { completion_port })
-    }
-
-    pub fn run<F: FnOnce(&mut CompletionPort) + 'static>(mut self, func: F) -> Result<()> {
-        func(&mut self.completion_port);
-
-        let ret = unsafe { CloseHandle(self.completion_port.handle) };
-
-        cvt(ret).map(|_| ())
+impl Drop for CompletionPort {
+    fn drop(&mut self) {
+        let ret = unsafe { CloseHandle(self.handle) };
+        if ret == 0 {
+            panic!("error {:?}", Error::last_os_error());
+        }
     }
 }
