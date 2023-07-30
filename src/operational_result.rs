@@ -2,28 +2,23 @@ use std::{mem::zeroed, ptr::null_mut};
 
 use windows_sys::Win32::System::IO::{OVERLAPPED, OVERLAPPED_ENTRY};
 
+use crate::{context::IOType, Context};
+
 pub struct OperationalResult {
+    buff: Vec<u8>,
+    io_type: IOType,
+    over_lapped: OVERLAPPED,
     entry: OVERLAPPED_ENTRY,
 }
 
 impl OperationalResult {
-    pub(crate) fn from_entry(entry: OVERLAPPED_ENTRY) -> Self {
-        Self { entry }
-    }
-
-    pub fn new(token: usize, bytes_used: u32, over_lapped: *mut OVERLAPPED) -> Self {
+    pub fn new(context: Context, entry: OVERLAPPED_ENTRY) -> Self {
         Self {
-            entry: OVERLAPPED_ENTRY {
-                lpCompletionKey: token,
-                lpOverlapped: over_lapped,
-                Internal: 0,
-                dwNumberOfBytesTransferred: bytes_used,
-            },
+            buff: context.buff,
+            io_type: context.io_type,
+            over_lapped: context.over_lapped,
+            entry,
         }
-    }
-
-    pub fn zero() -> Self {
-        Self::new(0, 0, null_mut())
     }
 
     pub fn token(&self) -> usize {
@@ -39,11 +34,15 @@ impl OperationalResult {
         (high_offset << 32) | low_offset
     }
 
-    pub fn bytes_used(&self) -> u32 {
-        self.entry.dwNumberOfBytesTransferred
+    pub fn bytes_used(&self) -> usize {
+        self.entry.dwNumberOfBytesTransferred as usize
     }
 
     pub(crate) fn over_lapped_ptr(&self) -> *mut OVERLAPPED {
         self.entry.lpOverlapped
+    }
+
+    pub fn get(self) -> (Vec<u8>, usize, IOType) {
+        (self.buff, self.bytes_used(), self.io_type)
     }
 }
