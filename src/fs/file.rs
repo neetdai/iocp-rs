@@ -9,84 +9,16 @@ use std::path::Path;
 use std::ptr::null_mut;
 
 use crate::context::IOType;
+use crate::fs::OpenOptions;
 use crate::io::Read;
 use crate::utils::{cvt, len};
-use crate::{AsHandle, Context, Write, ReadAt, WriteAt};
-
-pub struct OpenOptions {
-    opt: StdOpenOptions,
-}
-
-impl OpenOptions {
-    pub fn new() -> Self {
-        let mut opt = StdOpenOptions::new();
-        opt.custom_flags(FILE_FLAG_OVERLAPPED);
-
-        Self { opt }
-    }
-
-    pub fn read(&mut self, read: bool) -> &mut Self {
-        self.opt.read(read);
-        self
-    }
-
-    pub fn write(&mut self, write: bool) -> &mut Self {
-        self.opt.write(write);
-        self
-    }
-
-    pub fn append(&mut self, append: bool) -> &mut Self {
-        self.opt.append(append);
-        self
-    }
-
-    pub fn create(&mut self, create: bool) -> &mut Self {
-        self.opt.create(create);
-        self
-    }
-
-    pub fn create_new(&mut self, create_new: bool) -> &mut Self {
-        self.opt.create_new(create_new);
-        self
-    }
-
-    pub fn truncate(&mut self, truncate: bool) -> &mut Self {
-        self.opt.truncate(truncate);
-        self
-    }
-
-    pub fn access_mode(&mut self, access: u32) -> &mut Self {
-        self.opt.access_mode(access);
-        self
-    }
-
-    pub fn share_mode(&mut self, val: u32) -> &mut Self {
-        self.opt.share_mode(val);
-        self
-    }
-
-    pub fn attributes(&mut self, val: u32) -> &mut Self {
-        self.opt.attributes(val);
-        self
-    }
-
-    pub fn custom_flags(&mut self, flags: u32) -> &mut Self {
-        self.opt.custom_flags(FILE_FLAG_OVERLAPPED | flags);
-        self
-    }
-
-    pub fn security_qos_flags(&mut self, flags: u32) -> &mut Self {
-        self.opt.security_qos_flags(flags);
-        self
-    }
-
-    pub fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        self.opt.open(path).map(|file| File { handle: file })
-    }
-}
+use crate::{
+    io::{ReadAt, Write, WriteAt},
+    AsHandle, Context,
+};
 
 pub struct File {
-    handle: StdFile,
+    pub(crate) inner: StdFile,
 }
 
 impl File {
@@ -105,21 +37,21 @@ impl File {
     }
 
     pub fn metadata(&self) -> Result<Metadata> {
-        self.handle.metadata()
+        self.inner.metadata()
     }
 
     pub fn set_len(&self, size: u64) -> Result<()> {
-        self.handle.set_len(size)
+        self.inner.set_len(size)
     }
 
     pub fn set_permissions(&self, perm: Permissions) -> Result<()> {
-        self.handle.set_permissions(perm)
+        self.inner.set_permissions(perm)
     }
 
     fn _read(&mut self, mut buff: Vec<u8>, offset: u64) -> Result<Context> {
         let len = len(&buff);
         let buff_ptr = buff.as_mut_ptr();
-        let handle = self.handle.as_raw_handle() as HANDLE;
+        let handle = self.as_handle();
         let mut context = Context::new(handle, buff, IOType::Read);
         let over_lapped_ptr = context.over_lapped_ptr();
         context.set_offset(offset);
@@ -136,7 +68,7 @@ impl File {
     fn _write(&self, buff: Vec<u8>, offset: u64) -> Result<Context> {
         let len = len(&buff);
         let buff_ptr = buff.as_ptr();
-        let handle = self.handle.as_raw_handle() as HANDLE;
+        let handle = self.inner.as_raw_handle() as HANDLE;
         let mut context = Context::new(handle, buff, IOType::Write);
         let over_lapped_ptr = context.over_lapped_ptr();
         context.set_offset(offset);
@@ -155,14 +87,14 @@ impl AsHandle for File {
     type Handle = HANDLE;
 
     fn as_handle(&self) -> Self::Handle {
-        self.handle.as_raw_handle() as HANDLE
+        self.inner.as_raw_handle() as HANDLE
     }
 }
 
 impl Read for File {
     ///
     /// ```
-    /// use iocp_rs::{CompletionPort, File, OpenOptions, Read};
+    /// use iocp_rs::{CompletionPort, fs::{File, OpenOptions}, io::Read};
     /// use std::io::Result;
     /// use std::path::Path;
     ///
@@ -175,10 +107,10 @@ impl Read for File {
     ///     let context = file.read(buff)?;
     ///     let mut list = vec![context];
     ///
-    ///     let result_list = cmp.get_many(&mut list, None)?;
+    ///     let mut result_list = cmp.get_many(&mut list, None)?;
     ///     let (buff, size, _io_type) = result_list.remove(0).get();
     ///     assert_eq!(&buff[..size], b"123sdf");
-    ///     assert_eq!(&size, 6);
+    ///     assert_eq!(&size, &6usize);
     ///     Ok(())
     /// }
     /// ```
@@ -196,10 +128,10 @@ impl ReadAt for File {
 impl Write for File {
     ///
     /// ```
-    /// use iocp_rs::{CompletionPort, File, OpenOptions, Write};
+    /// use iocp_rs::{CompletionPort, fs::{File, OpenOptions}, io::Write};
     /// use std::io::Result;
     /// use std::path::Path;
-    /// 
+    ///
     /// fn main() -> Result<()> {
     ///     let cmp = CompletionPort::new(1)?;
     ///     let mut file = OpenOptions::new().read(true).create_new(true).open("./tmp.txt")?;
@@ -209,7 +141,7 @@ impl Write for File {
     ///     let context = file.write(buff)?;
     ///     let mut list = vec![context];
     ///
-    ///     let result_list = cmp.get_many(&mut list, None)?;
+    ///     let mut result_list = cmp.get_many(&mut list, None)?;
     ///     let (buff, size, _io_type) = result_list.remove(0).get();
     ///     Ok(())
     /// }
@@ -227,25 +159,28 @@ impl WriteAt for File {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CompletionPort, OpenOptions, Read, Write};
+    use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OVERLAPPED;
+
+    use crate::{
+        fs::OpenOptions,
+        io::{Read, Write},
+        CompletionPort,
+    };
 
     #[test]
     fn read_file() {
         let cmp = CompletionPort::new(1).unwrap();
         let mut file = OpenOptions::new()
             .read(true)
-            .open("E:\\rust\\iocp-rs\\test.txt")
+            .open("..\\test.txt")
             .unwrap();
         cmp.add(1, &file).unwrap();
         let buff = vec![0; 10];
 
         let context = file.read(buff).unwrap();
-        let mut list = vec![context];
 
-        let mut result_list = cmp.get_many(&mut list, None).unwrap();
-        let (buff, size, _io_type) = result_list.remove(0).get();
-        assert_eq!(&buff[..size], b"123sdf");
-        assert_eq!(size, 6);
+        let mut result = cmp.get(None).unwrap();
+        assert_eq!(&context.get_buff()[..result.bytes_used() as usize], b"123".as_slice());
     }
 
     #[test]
@@ -253,17 +188,19 @@ mod tests {
         let cmp = CompletionPort::new(1).unwrap();
         let file = OpenOptions::new()
             .write(true)
-            .open("E:\\rust\\iocp-rs\\test.txt")
+            .create(true)
+            .open("..\\test.txt")
             .unwrap();
         cmp.add(1, &file).unwrap();
         let buff = b"123".to_vec();
 
         let context = file.write(buff).unwrap();
-        let mut list = vec![context];
 
-        let mut result_list = cmp.get_many(&mut list, None).unwrap();
-        let (buff, size, _io_type) = result_list.remove(0).get();
-        assert_eq!(&buff, b"123");
-        assert_eq!(size, 3);
+        let result = cmp.get(None).unwrap();
+        assert_eq!(&context.get_buff()[..result.bytes_used() as usize], b"123");
+        // let (mut result_list, list) = cmp.get_many(list, None).unwrap();
+        // let (buff, size, _io_type) = result_list.remove(0).get();
+        // assert_eq!(&buff, b"123");
+        // assert_eq!(size, 3);
     }
 }
