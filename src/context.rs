@@ -13,11 +13,12 @@ pub enum IOType {
     Write,
 }
 
+#[repr(C)]
 pub struct Context {
+    pub(crate) over_lapped: OVERLAPPED,
     pub(crate) buff: Vec<u8>,
     handle: HANDLE,
     pub(crate) io_type: IOType,
-    pub(crate) over_lapped: OVERLAPPED,
 }
 
 impl Context {
@@ -44,6 +45,10 @@ impl Context {
         let high_offset = unsafe { self.over_lapped.Anonymous.Anonymous.OffsetHigh as u64 };
 
         (high_offset << 32) | low_offset
+    }
+
+    pub fn get_buff(&self) -> &[u8] {
+        &self.buff
     }
 
     pub(crate) fn over_lapped_ptr(&mut self) -> *mut OVERLAPPED {

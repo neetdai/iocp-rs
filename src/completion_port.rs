@@ -5,8 +5,9 @@ use crate::{
     AsHandle, OperationalResult,
 };
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, HashSet, VecDeque},
     io::{Error, Result},
+    mem::zeroed,
     ptr::null_mut,
     time::Duration,
 };
@@ -47,22 +48,46 @@ impl CompletionPort {
         }
     }
 
-    /// Get many result by Context lists, and return OperationalResult lists.
+    pub fn get(&self, timeout: Option<Duration>) -> Result<OperationalResult> {
+        let mut ptr = null_mut();
+        let mut bytes_used = 0;
+        let mut token = 0;
+        let timeout = dur_to_ms(timeout);
+
+        let ret = unsafe {
+            GetQueuedCompletionStatus(
+                self.handle,
+                &mut bytes_used,
+                &mut token,
+                &mut ptr,
+                timeout
+            )
+        };
+
+        if ret == 0 {
+            Err(Error::last_os_error())
+        } else {
+            let entry = OVERLAPPED_ENTRY {
+                lpCompletionKey: token,
+                Internal: 0,
+                lpOverlapped: ptr,
+                dwNumberOfBytesTransferred: bytes_used,
+            };
+
+            Ok(
+                OperationalResult::new(entry)
+            )
+        }
+    }
+
+    // /// Get many result by Context lists, and return OperationalResult lists.
     pub fn get_many(
         &self,
-        list: &mut Vec<Context>,
+        size: usize,
         timeout: Option<Duration>,
     ) -> Result<Vec<OperationalResult>> {
-        let mut entries = list
-            .iter_mut()
-            .map(Context::over_lapped_ptr)
-            .map(|over_lapped_ptr| OVERLAPPED_ENTRY {
-                lpCompletionKey: 0,
-                lpOverlapped: over_lapped_ptr,
-                Internal: 0,
-                dwNumberOfBytesTransferred: 0,
-            })
-            .collect::<Vec<OVERLAPPED_ENTRY>>();
+        let mut entries = vec![unsafe { zeroed::<OVERLAPPED_ENTRY>() }; size];
+
         let mut removed = 0;
         let timeout = dur_to_ms(timeout);
         let len = len(&entries);
@@ -82,11 +107,17 @@ impl CompletionPort {
             Err(Error::last_os_error())
         } else {
             let removed = removed as usize;
-            Ok(list
-                .drain(..removed)
-                .zip(entries.drain(..removed))
-                .map(|(context, entry)| OperationalResult::new(context, entry))
-                .collect())
+
+            unsafe {
+                entries.set_len(removed);
+            }
+            
+            Ok(
+                entries
+                    .drain(..removed)
+                    .map(|entry| OperationalResult::new(entry))
+                    .collect()
+            )
         }
     }
 
