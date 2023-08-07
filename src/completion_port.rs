@@ -1,11 +1,9 @@
 use crate::{
-    context::Context,
     cvt,
     utils::{dur_to_ms, len},
     AsHandle, OperationalResult,
 };
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
     io::{Error, Result},
     mem::zeroed,
     ptr::null_mut,
@@ -15,7 +13,7 @@ use windows_sys::Win32::{
     Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE},
     System::IO::{
         CreateIoCompletionPort, GetQueuedCompletionStatus, GetQueuedCompletionStatusEx,
-        PostQueuedCompletionStatus, OVERLAPPED, OVERLAPPED_ENTRY,
+        PostQueuedCompletionStatus, OVERLAPPED_ENTRY,
     },
 };
 

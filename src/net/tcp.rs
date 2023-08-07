@@ -1,7 +1,7 @@
-use std::io::{Error, Result};
-use std::net::{Shutdown, SocketAddr, TcpListener as StdTcpListner, TcpStream, ToSocketAddrs};
+use std::io::{Result};
+
 use std::os::windows::prelude::AsRawSocket;
-use std::time::Duration;
+
 
 use windows_sys::Win32::Networking::WinSock::{WSARecv, WSASend, WSA_IO_PENDING};
 use windows_sys::Win32::{
@@ -10,7 +10,7 @@ use windows_sys::Win32::{
 };
 
 use crate::context::IOType;
-use crate::io::{Read, Write};
+
 use crate::len;
 use crate::{AsHandle, Context};
 
@@ -83,7 +83,7 @@ pub trait TcpStreamExt: AsHandle<Handle = HANDLE> + AsRawSocket {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::fs::{File, OpenOptions};
+    use std::fs::{OpenOptions};
     use std::io::Write as StdWrite;
     use std::os::windows::prelude::{AsRawSocket, OpenOptionsExt};
     use std::{

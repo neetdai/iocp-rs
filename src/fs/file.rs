@@ -1,18 +1,17 @@
 use windows_sys::Win32::Foundation::ERROR_IO_PENDING;
 use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
-use windows_sys::Win32::{Foundation::HANDLE, Storage::FileSystem::FILE_FLAG_OVERLAPPED};
+use windows_sys::Win32::{Foundation::HANDLE};
 
-use std::fs::{File as StdFile, Metadata, OpenOptions as StdOpenOptions, Permissions};
-use std::io::{Error, Result};
-use std::os::windows::prelude::{AsRawHandle, OpenOptionsExt};
-use std::path::Path;
+
+use std::io::{Result};
+
+
 use std::ptr::null_mut;
 
 use crate::context::IOType;
-use crate::io::Read;
+
 use crate::utils::{cvt, len};
 use crate::{
-    io::{ReadAt, Write, WriteAt},
     AsHandle, Context,
 };
 
@@ -148,7 +147,7 @@ mod tests {
 
         let context = FileExt::read(&mut file, buff).unwrap();
 
-        let mut result = cmp.get(None).unwrap();
+        let result = cmp.get(None).unwrap();
         assert_eq!(
             &context.get_buff()[..result.bytes_used() as usize],
             b"123".as_slice()

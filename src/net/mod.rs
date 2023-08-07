@@ -4,7 +4,7 @@ mod udp;
 use std::io::{Error, Result};
 use std::mem::zeroed;
 use std::mem::{size_of, size_of_val};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::OnceLock;
 use windows_sys::Win32::Networking::WinSock::{
     WSACleanup, WSAGetLastError, WSAStartup, AF_INET, AF_INET6, IN6_ADDR, IN6_ADDR_0, IN_ADDR,
