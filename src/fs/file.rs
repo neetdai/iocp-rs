@@ -9,7 +9,6 @@ use std::path::Path;
 use std::ptr::null_mut;
 
 use crate::context::IOType;
-use crate::fs::OpenOptions;
 use crate::io::Read;
 use crate::utils::{cvt, len};
 use crate::{
@@ -17,37 +16,7 @@ use crate::{
     AsHandle, Context,
 };
 
-pub struct File {
-    pub(crate) inner: StdFile,
-}
-
-impl File {
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
-        OpenOptions::new()
-            .read(true)
-            .custom_flags(FILE_FLAG_OVERLAPPED)
-            .open(path)
-    }
-
-    pub fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
-        OpenOptions::new()
-            .write(true)
-            .custom_flags(FILE_FLAG_OVERLAPPED)
-            .open(path)
-    }
-
-    pub fn metadata(&self) -> Result<Metadata> {
-        self.inner.metadata()
-    }
-
-    pub fn set_len(&self, size: u64) -> Result<()> {
-        self.inner.set_len(size)
-    }
-
-    pub fn set_permissions(&self, perm: Permissions) -> Result<()> {
-        self.inner.set_permissions(perm)
-    }
-
+pub trait FileExt: AsHandle<Handle = HANDLE> {
     fn _read(&mut self, mut buff: Vec<u8>, offset: u64) -> Result<Context> {
         let len = len(&buff);
         let buff_ptr = buff.as_mut_ptr();
@@ -68,7 +37,7 @@ impl File {
     fn _write(&self, buff: Vec<u8>, offset: u64) -> Result<Context> {
         let len = len(&buff);
         let buff_ptr = buff.as_ptr();
-        let handle = self.inner.as_raw_handle() as HANDLE;
+        let handle = self.as_handle() as HANDLE;
         let mut context = Context::new(handle, buff, IOType::Write);
         let over_lapped_ptr = context.over_lapped_ptr();
         context.set_offset(offset);
@@ -81,17 +50,7 @@ impl File {
             Err(e) => Err(e),
         }
     }
-}
 
-impl AsHandle for File {
-    type Handle = HANDLE;
-
-    fn as_handle(&self) -> Self::Handle {
-        self.inner.as_raw_handle() as HANDLE
-    }
-}
-
-impl Read for File {
     ///
     /// ```
     /// use iocp_rs::{CompletionPort, fs::{File, OpenOptions}, io::Read};
@@ -117,15 +76,11 @@ impl Read for File {
     fn read(&mut self, buff: Vec<u8>) -> Result<Context> {
         self._read(buff, 0)
     }
-}
 
-impl ReadAt for File {
     fn read_at(&mut self, buff: Vec<u8>, offset: u64) -> Result<Context> {
         self._read(buff, offset)
     }
-}
 
-impl Write for File {
     ///
     /// ```
     /// use iocp_rs::{CompletionPort, fs::{File, OpenOptions}, io::Write};
@@ -149,9 +104,7 @@ impl Write for File {
     fn write(&self, buff: Vec<u8>) -> Result<Context> {
         self._write(buff, 0)
     }
-}
 
-impl WriteAt for File {
     fn write_at(&self, buff: Vec<u8>, offset: u64) -> Result<Context> {
         self._write(buff, offset)
     }
@@ -159,28 +112,47 @@ impl WriteAt for File {
 
 #[cfg(test)]
 mod tests {
+    use windows_sys::Win32::Foundation::HANDLE;
     use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OVERLAPPED;
 
     use crate::{
-        fs::OpenOptions,
+        fs::FileExt,
         io::{Read, Write},
-        CompletionPort,
+        AsHandle, CompletionPort,
     };
+    use std::{
+        fs::{File, OpenOptions},
+        os::windows::prelude::OpenOptionsExt,
+    };
+
+    impl AsHandle for File {
+        type Handle = HANDLE;
+
+        fn as_handle(&self) -> Self::Handle {
+            self.as_handle() as HANDLE
+        }
+    }
+
+    impl FileExt for File {}
 
     #[test]
     fn read_file() {
         let cmp = CompletionPort::new(1).unwrap();
         let mut file = OpenOptions::new()
+            .custom_flags(FILE_FLAG_OVERLAPPED)
             .read(true)
             .open("..\\test.txt")
             .unwrap();
         cmp.add(1, &file).unwrap();
         let buff = vec![0; 10];
 
-        let context = file.read(buff).unwrap();
+        let context = FileExt::read(&mut file, buff).unwrap();
 
         let mut result = cmp.get(None).unwrap();
-        assert_eq!(&context.get_buff()[..result.bytes_used() as usize], b"123".as_slice());
+        assert_eq!(
+            &context.get_buff()[..result.bytes_used() as usize],
+            b"123".as_slice()
+        );
     }
 
     #[test]

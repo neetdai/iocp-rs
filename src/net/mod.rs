@@ -1,6 +1,6 @@
 mod socket;
 mod tcp;
-// mod udp;
+mod udp;
 
 use std::io::{Error, Result};
 use std::mem::zeroed;

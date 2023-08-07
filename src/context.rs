@@ -13,7 +13,7 @@ pub enum IOType {
     Write,
 }
 
-#[repr(C)]
+
 pub struct Context {
     pub(crate) over_lapped: OVERLAPPED,
     pub(crate) buff: Vec<u8>,
