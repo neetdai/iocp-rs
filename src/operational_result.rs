@@ -8,9 +8,7 @@ pub struct OperationalResult {
 
 impl OperationalResult {
     pub fn new(entry: OVERLAPPED_ENTRY) -> Self {
-        Self {
-            entry,
-        }
+        Self { entry }
     }
 
     pub fn token(&self) -> usize {
@@ -33,5 +31,4 @@ impl OperationalResult {
     pub(crate) fn over_lapped_ptr(&self) -> *mut OVERLAPPED {
         self.entry.lpOverlapped
     }
-
 }

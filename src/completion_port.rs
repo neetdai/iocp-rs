@@ -55,13 +55,7 @@ impl CompletionPort {
         let timeout = dur_to_ms(timeout);
 
         let ret = unsafe {
-            GetQueuedCompletionStatus(
-                self.handle,
-                &mut bytes_used,
-                &mut token,
-                &mut ptr,
-                timeout
-            )
+            GetQueuedCompletionStatus(self.handle, &mut bytes_used, &mut token, &mut ptr, timeout)
         };
 
         if ret == 0 {
@@ -74,9 +68,7 @@ impl CompletionPort {
                 dwNumberOfBytesTransferred: bytes_used,
             };
 
-            Ok(
-                OperationalResult::new(entry)
-            )
+            Ok(OperationalResult::new(entry))
         }
     }
 
@@ -111,13 +103,11 @@ impl CompletionPort {
             unsafe {
                 entries.set_len(removed);
             }
-            
-            Ok(
-                entries
-                    .drain(..removed)
-                    .map(|entry| OperationalResult::new(entry))
-                    .collect()
-            )
+
+            Ok(entries
+                .drain(..removed)
+                .map(|entry| OperationalResult::new(entry))
+                .collect())
         }
     }
 
