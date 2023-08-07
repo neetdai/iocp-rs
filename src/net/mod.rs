@@ -1,4 +1,3 @@
-mod socket;
 mod tcp;
 mod udp;
 
