@@ -33,7 +33,12 @@ impl CompletionPort {
         }
     }
 
-    ///
+    /// Register a handle and token with CompletionPort.
+    /// The same token and handle cannot be registered in CompletionPort again unless the handle has been closed.
+    /// 
+    /// ```
+    /// 
+    /// ```
     pub fn add<A: AsHandle<Handle = HANDLE>>(&self, token: usize, io_object: &A) -> Result<()> {
         let handle = io_object.as_handle();
 
@@ -70,7 +75,7 @@ impl CompletionPort {
         }
     }
 
-    // /// Get many result by Context lists, and return OperationalResult lists.
+    /// Get many result by Context lists, and return OperationalResult lists.
     pub fn get_many(
         &self,
         size: usize,
@@ -129,5 +134,56 @@ impl Drop for CompletionPort {
         if ret == 0 {
             panic!("error {:?}", Error::last_os_error());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::OpenOptions, os::windows::prelude::OpenOptionsExt};
+
+    use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OVERLAPPED;
+
+    use crate::{CompletionPort, fs::FileExt};
+
+    #[test]
+    fn repeat_add() {
+        let mut cmp = CompletionPort::new(1).unwrap();
+
+        let mut file = OpenOptions::new()
+                                            .custom_flags(FILE_FLAG_OVERLAPPED)
+                                            .read(true)
+                                            .open("..\\test.txt")
+                                            .unwrap();
+
+        cmp.add(1, &file).unwrap();
+
+        let context_1 = file.read(vec![0; 3]).unwrap();
+
+        let result_list = cmp.get_many(2, None).unwrap();
+        for result in result_list {
+            dbg!(result.token());
+        }
+
+        drop(file);
+        
+        let mut file = OpenOptions::new()
+                                            .custom_flags(FILE_FLAG_OVERLAPPED)
+                                            .read(true)
+                                            .open("..\\test.txt")
+                                            .unwrap();
+
+        cmp.add(1, &file).unwrap();
+
+        // cmp.add(2, &file).unwrap();
+        let context_2 = file.read(vec![0; 2]).unwrap();
+
+        let result_list = cmp.get_many(2, None).unwrap();
+        for result in result_list {
+            dbg!(result.token());
+        }
+
+
+        drop(file);
+        drop(cmp);
     }
 }

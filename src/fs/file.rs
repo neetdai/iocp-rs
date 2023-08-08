@@ -52,23 +52,48 @@ pub trait FileExt: AsHandle<Handle = HANDLE> {
 
     ///
     /// ```
-    /// use iocp_rs::{CompletionPort, fs::{File, OpenOptions}, io::Read};
+    /// use iocp_rs::{CompletionPort, fs::FileExt, AsHandle};
     /// use std::io::Result;
     /// use std::path::Path;
-    ///
+    /// use std::fs::{OpenOptions, File};
+    /// use std::collections::HashMap;
+    /// use std::os::windows::io::AsRawHandle;
+    /// use std::os::windows::fs::OpenOptionsExt;
+    /// use windows_sys::Win32::{Storage::FileSystem::FILE_FLAG_OVERLAPPED, Foundation::HANDLE};
+    /// 
+    /// struct MyFile {
+    ///     inner: File
+    /// }
+    /// 
+    /// impl AsHandle for MyFile {
+    ///     type Handle = HANDLE;
+    ///     fn as_handle(&self) -> Self::Handle {
+    ///         self.inner.as_raw_handle() as HANDLE
+    ///     }
+    /// }
+    /// 
+    /// impl FileExt for MyFile {}
+    /// 
     /// fn main() -> Result<()> {
     ///     let cmp = CompletionPort::new(1)?;
-    ///     let mut file = OpenOptions::new().read(true).create_new(true).open("./tmp.txt")?;
+    ///     let mut file = OpenOptions::new()
+    ///                         .read(true)
+    ///                         .custom_flags(FILE_FLAG_OVERLAPPED)
+    ///                         .open("./tmp.txt")?;
+    /// 
+    ///     let mut file = MyFile {inner: file};
     ///     cmp.add(1, &file)?;
     ///     let mut buff = vec![0; 10];
     ///     
-    ///     let context = file.read(buff)?;
-    ///     let mut list = vec![context];
+    ///     let context = FileExt::read(&mut file, buff)?;
+    ///     let mut map = HashMap::new();
+    ///     map.insert(1, context);
     ///
-    ///     let mut result_list = cmp.get_many(&mut list, None)?;
-    ///     let (buff, size, _io_type) = result_list.remove(0).get();
-    ///     assert_eq!(&buff[..size], b"123sdf");
-    ///     assert_eq!(&size, &6usize);
+    ///     let mut result_list = cmp.get_many(map.len(), None)?;
+    ///     let result = result_list.remove(0);
+    ///     let context = map.remove(&result.token()).unwrap();
+    ///     assert_eq!(&context.get_buff()[..result.bytes_used() as usize], b"123sdf");
+    ///     assert_eq!(result.bytes_used() as usize, 6usize);
     ///     Ok(())
     /// }
     /// ```
@@ -80,23 +105,51 @@ pub trait FileExt: AsHandle<Handle = HANDLE> {
         self._read(buff, offset)
     }
 
-    ///
+    /// 
     /// ```
-    /// use iocp_rs::{CompletionPort, fs::{File, OpenOptions}, io::Write};
+    /// use iocp_rs::{CompletionPort, fs::FileExt, AsHandle};
     /// use std::io::Result;
     /// use std::path::Path;
+    /// use std::collections::HashMap;
+    /// use std::fs::{OpenOptions, File};
+    /// use std::os::windows::io::AsRawHandle;
+    /// use std::os::windows::fs::OpenOptionsExt;
+    /// use windows_sys::Win32::{Storage::FileSystem::FILE_FLAG_OVERLAPPED, Foundation::HANDLE};
     ///
+    /// struct MyFile {
+    ///     inner: File
+    /// }
+    /// 
+    /// impl AsHandle for MyFile {
+    ///     type Handle = HANDLE;
+    ///     fn as_handle(&self) -> Self::Handle {
+    ///         self.inner.as_raw_handle() as HANDLE
+    ///     }
+    /// }
+    /// 
+    /// impl FileExt for MyFile {}
+    /// 
     /// fn main() -> Result<()> {
     ///     let cmp = CompletionPort::new(1)?;
-    ///     let mut file = OpenOptions::new().read(true).create_new(true).open("./tmp.txt")?;
+    ///     let mut file = OpenOptions::new()
+    ///                         .write(true)
+    ///                         .custom_flags(FILE_FLAG_OVERLAPPED)
+    ///                         .open("./tmp.txt")?;
+    /// 
+    ///     let mut file = MyFile {inner: file};
     ///     cmp.add(1, &file)?;
     ///     let mut buff = b"123".to_vec();
     ///     
     ///     let context = file.write(buff)?;
-    ///     let mut list = vec![context];
+    ///     let mut map = HashMap::new();
+    ///     map.insert(1, context);
     ///
-    ///     let mut result_list = cmp.get_many(&mut list, None)?;
-    ///     let (buff, size, _io_type) = result_list.remove(0).get();
+    ///     let mut result_list = cmp.get_many(map.len(), None)?;
+    ///     for result in result_list {
+    ///         if map.contains_key(&result.token()) {
+    ///             dbg!(result.bytes_used());
+    ///         }   
+    ///     }
     ///     Ok(())
     /// }
     /// ```
@@ -121,14 +174,14 @@ mod tests {
     };
     use std::{
         fs::{File, OpenOptions},
-        os::windows::prelude::OpenOptionsExt,
+        os::windows::prelude::{OpenOptionsExt, AsRawHandle},
     };
 
     impl AsHandle for File {
         type Handle = HANDLE;
 
         fn as_handle(&self) -> Self::Handle {
-            self.as_handle() as HANDLE
+            self.as_raw_handle() as HANDLE
         }
     }
 
@@ -160,6 +213,7 @@ mod tests {
         let file = OpenOptions::new()
             .write(true)
             .create(true)
+            .custom_flags(FILE_FLAG_OVERLAPPED)
             .open("..\\test.txt")
             .unwrap();
         cmp.add(1, &file).unwrap();
