@@ -1,6 +1,9 @@
 mod tcp;
 mod udp;
 
+pub use tcp::TcpStreamExt;
+pub use udp::UdpSocketExt;
+
 use std::io::{Error, Result};
 use std::mem::zeroed;
 use std::mem::{size_of, size_of_val};

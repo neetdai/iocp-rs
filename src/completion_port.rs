@@ -109,7 +109,7 @@ impl CompletionPort {
 
             Ok(entries
                 .drain(..removed)
-                .map(|entry| OperationalResult::new(entry))
+                .map(OperationalResult::new)
                 .collect())
         }
     }
