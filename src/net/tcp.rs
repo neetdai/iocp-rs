@@ -1,4 +1,4 @@
-use std::io::{Result};
+use std::io::Result;
 
 use std::os::windows::prelude::AsRawSocket;
 
@@ -16,7 +16,12 @@ use crate::{AsHandle, Context};
 
 use super::cvt_for_socket;
 
+/// Addtional method for the `TcpStream` type.
 pub trait TcpStreamExt: AsHandle<Handle = HANDLE> + AsRawSocket {
+
+    /// Execute an ovelapped read I/O on this TCP stream.
+    /// This function will issue an overlapped I/O write (via `WSARecv`) on this
+    /// socket.
     fn read(&mut self, mut buff: Vec<u8>) -> Result<Context> {
         let socket = self.as_raw_socket() as SOCKET;
         let buff_len = len(&buff);
@@ -48,6 +53,9 @@ pub trait TcpStreamExt: AsHandle<Handle = HANDLE> + AsRawSocket {
         }
     }
 
+    /// Execute an ovelapped write I/O on this TCP stream.
+    /// This function will issue an overlapped I/O write (via `WSASend`) on this
+    /// socket.
     fn write(&self, mut buff: Vec<u8>) -> Result<Context> {
         let socket = self.as_raw_socket() as SOCKET;
         let buff_len = len(&buff);
@@ -95,7 +103,7 @@ mod tests {
 
     use crate::fs::FileExt;
     use crate::AsHandle;
-    use crate::{io::Read, CompletionPort};
+    use crate::CompletionPort;
 
     use super::TcpStreamExt;
 

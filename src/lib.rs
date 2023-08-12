@@ -2,7 +2,6 @@ mod as_handle;
 mod completion_port;
 mod context;
 pub mod fs;
-pub mod io;
 pub mod net;
 mod operational_result;
 mod utils;

@@ -17,9 +17,14 @@ use crate::{AsHandle, Context};
 use super::cvt_for_socket;
 use super::SocketAddrCRepr;
 
+/// Addtional method for the `TcpStream` type.
 pub trait UdpSocketExt: AsRawSocket + AsHandle<Handle = HANDLE> {
+
+    /// Execute an ovelapped read I/O on this UDP stream.
+    /// This function will issue an overlapped I/O write (via `WSARecv`) on this
+    /// socket.
     fn recv(&self, mut buff: Vec<u8>) -> Result<Context> {
-        let mut wsa_buf = WSABUF {
+        let wsa_buf = WSABUF {
             len: len(&buff),
             buf: buff.as_mut_ptr(),
         };
@@ -32,7 +37,7 @@ pub trait UdpSocketExt: AsRawSocket + AsHandle<Handle = HANDLE> {
         let ret = unsafe {
             WSARecv(
                 self.as_raw_socket() as SOCKET,
-                &mut wsa_buf,
+                &wsa_buf,
                 1,
                 &mut bytes_used,
                 &mut flags,
@@ -48,6 +53,8 @@ pub trait UdpSocketExt: AsRawSocket + AsHandle<Handle = HANDLE> {
         }
     }
 
+    /// This function will issue an overlapped I/O write (via `WSARecvFrom`) on this
+    /// socket.
     fn recv_from(&self, mut buff: Vec<u8>) -> Result<(Context, SocketAddr)> {
         let wsa_buf = WSABUF {
             len: len(&buff),
@@ -85,6 +92,9 @@ pub trait UdpSocketExt: AsRawSocket + AsHandle<Handle = HANDLE> {
         }
     }
 
+    /// Execute an ovelapped send I/O on this TCP stream.
+    /// This function will issue an overlapped I/O write (via `WSASend`) on this
+    /// socket.
     fn send(&self, mut buff: Vec<u8>) -> Result<Context> {
         let wsa_buf = WSABUF {
             len: len(&buff),

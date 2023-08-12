@@ -137,6 +137,9 @@ impl Drop for CompletionPort {
     }
 }
 
+unsafe impl Send for CompletionPort {}
+unsafe impl Sync for CompletionPort {}
+
 #[cfg(test)]
 mod tests {
     use std::{fs::OpenOptions, os::windows::prelude::OpenOptionsExt};

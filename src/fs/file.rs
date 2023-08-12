@@ -15,7 +15,11 @@ use crate::{
     AsHandle, Context,
 };
 
+/// Addtional method for the `File` type.
 pub trait FileExt: AsHandle<Handle = HANDLE> {
+
+    /// Execute an ovelapped read I/O on this file.
+    /// 
     fn _read(&mut self, mut buff: Vec<u8>, offset: u64) -> Result<Context> {
         let len = len(&buff);
         let buff_ptr = buff.as_mut_ptr();
@@ -33,6 +37,8 @@ pub trait FileExt: AsHandle<Handle = HANDLE> {
         }
     }
 
+    /// Execute an overlapped write I/O on this file.
+    /// 
     fn _write(&self, buff: Vec<u8>, offset: u64) -> Result<Context> {
         let len = len(&buff);
         let buff_ptr = buff.as_ptr();
@@ -169,7 +175,6 @@ mod tests {
 
     use crate::{
         fs::FileExt,
-        io::{Read, Write},
         AsHandle, CompletionPort,
     };
     use std::{
