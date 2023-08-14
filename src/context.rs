@@ -142,8 +142,7 @@ mod tests {
     }
     
     impl AsHandle for MyTcpStream {
-        type Handle = HANDLE;
-        fn as_handle(&self) -> Self::Handle {
+        fn as_handle(&self) -> HANDLE {
             self.inner.as_raw_socket() as HANDLE
         }
     }

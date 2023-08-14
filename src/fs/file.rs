@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Addtional method for the `File` type.
-pub trait FileExt: AsHandle<Handle = HANDLE> {
+pub trait FileExt: AsHandle {
 
     /// Execute an ovelapped read I/O on this file.
     /// 
@@ -183,9 +183,8 @@ mod tests {
     };
 
     impl AsHandle for File {
-        type Handle = HANDLE;
 
-        fn as_handle(&self) -> Self::Handle {
+        fn as_handle(&self) -> HANDLE {
             self.as_raw_handle() as HANDLE
         }
     }

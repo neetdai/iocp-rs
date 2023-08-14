@@ -39,7 +39,7 @@ impl CompletionPort {
     /// ```
     /// 
     /// ```
-    pub fn add<A: AsHandle<Handle = HANDLE>>(&self, token: usize, io_object: &A) -> Result<()> {
+    pub fn add<A: AsHandle>(&self, token: usize, io_object: &A) -> Result<()> {
         let handle = io_object.as_handle();
 
         let ret = unsafe { CreateIoCompletionPort(handle, self.handle, token, 0) };

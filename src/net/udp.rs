@@ -18,7 +18,7 @@ use super::cvt_for_socket;
 use super::SocketAddrCRepr;
 
 /// Addtional method for the `TcpStream` type.
-pub trait UdpSocketExt: AsRawSocket + AsHandle<Handle = HANDLE> {
+pub trait UdpSocketExt: AsRawSocket + AsHandle {
 
     /// Execute an ovelapped read I/O on this UDP stream.
     /// This function will issue an overlapped I/O write (via `WSARecv`) on this

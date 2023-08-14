@@ -17,7 +17,7 @@ use crate::{AsHandle, Context};
 use super::cvt_for_socket;
 
 /// Addtional method for the `TcpStream` type.
-pub trait TcpStreamExt: AsHandle<Handle = HANDLE> + AsRawSocket {
+pub trait TcpStreamExt: AsHandle + AsRawSocket {
 
     /// Execute an ovelapped read I/O on this TCP stream.
     /// This function will issue an overlapped I/O write (via `WSARecv`) on this
@@ -108,9 +108,8 @@ mod tests {
     use super::TcpStreamExt;
 
     impl AsHandle for TcpStream {
-        type Handle = HANDLE;
 
-        fn as_handle(&self) -> Self::Handle {
+        fn as_handle(&self) -> HANDLE {
             self.as_raw_socket() as HANDLE
         }
     }

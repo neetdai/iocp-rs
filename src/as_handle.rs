@@ -1,5 +1,5 @@
-pub trait AsHandle {
-    type Handle;
+use windows_sys::Win32::Foundation::HANDLE;
 
-    fn as_handle(&self) -> Self::Handle;
+pub trait AsHandle {
+    fn as_handle(&self) -> HANDLE;
 }
