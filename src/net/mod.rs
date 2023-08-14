@@ -14,36 +14,6 @@ use windows_sys::Win32::Networking::WinSock::{
     IN_ADDR_0, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6, SOCKADDR_IN6_0, SOCKET_ERROR, WSADATA,
 };
 
-pub(crate) struct WSAInit;
-
-impl WSAInit {
-    pub(crate) fn new() -> Self {
-        unsafe {
-            let mut data = zeroed::<WSADATA>();
-            let inner = WSAStartup(0x202, &mut data);
-
-            if inner != 0 {
-                let code = WSAGetLastError();
-                panic!("wsa init error {}", Error::from_raw_os_error(code));
-            }
-            Self {}
-        }
-    }
-}
-
-impl Drop for WSAInit {
-    fn drop(&mut self) {
-        unsafe {
-            let ret = WSACleanup();
-            if ret != 0 {
-                let code = WSAGetLastError();
-                panic!("wsa drop error {}", Error::from_raw_os_error(code))
-            }
-        }
-    }
-}
-
-pub(crate) static ONCE_INIT: OnceLock<WSAInit> = OnceLock::new();
 
 pub(crate) union SocketAddrCRepr {
     v4: SOCKADDR_IN,
