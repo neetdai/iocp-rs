@@ -23,7 +23,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub(crate) fn new(handle: HANDLE, buff: Vec<u8>, io_type: IOType) -> Self {
+    pub fn new(handle: HANDLE, buff: Vec<u8>, io_type: IOType) -> Self {
         let over_lapped = unsafe { zeroed::<OVERLAPPED>() };
         Self {
             handle,
@@ -50,6 +50,10 @@ impl Context {
 
     pub fn get_buff(&self) -> &[u8] {
         &self.buff
+    }
+
+    pub fn io_type(&self) -> &IOType {
+        &self.io_type
     }
 
     pub(crate) fn over_lapped_ptr(&mut self) -> *mut OVERLAPPED {

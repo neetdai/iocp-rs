@@ -16,6 +16,10 @@ use crate::{AsHandle, Context};
 
 use super::cvt_for_socket;
 
+pub trait TcpListenerExt<T>: AsHandle + AsRawSocket {
+    fn accept(&self) -> Result<(T, Context)>;
+}
+
 /// Addtional method for the `TcpStream` type.
 pub trait TcpStreamExt: AsHandle + AsRawSocket {
 
