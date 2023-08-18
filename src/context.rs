@@ -33,7 +33,7 @@ impl Context {
         }
     }
 
-    pub(crate) fn set_offset(&mut self, offset: u64) {
+    pub fn set_offset(&mut self, offset: u64) {
         let low_offset = (offset & (u32::MAX as u64)) as u32;
         let high_offset = (offset >> 32) as u32;
 
@@ -41,7 +41,7 @@ impl Context {
         self.over_lapped.Anonymous.Anonymous.OffsetHigh = high_offset;
     }
 
-    pub(crate) fn offset(&self) -> u64 {
+    pub fn offset(&self) -> u64 {
         let low_offset = unsafe { self.over_lapped.Anonymous.Anonymous.Offset as u64 };
         let high_offset = unsafe { self.over_lapped.Anonymous.Anonymous.OffsetHigh as u64 };
 
@@ -56,7 +56,7 @@ impl Context {
         &self.io_type
     }
 
-    pub(crate) fn over_lapped_ptr(&mut self) -> *mut OVERLAPPED {
+    pub fn over_lapped_ptr(&mut self) -> *mut OVERLAPPED {
         (&mut self.over_lapped) as *mut _
     }
 
